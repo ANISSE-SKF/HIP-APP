@@ -1,26 +1,29 @@
 import streamlit as st
-import pdfplumber
+import fitz  # PyMuPDF
 import pandas as pd
 import io
 
 st.set_page_config(page_title="Extraction PDF vers Excel", layout="centered")
 st.title("📄 Convertisseur PDF → Excel")
 
-st.markdown("Dépose ton fichier PDF ci-dessous. Le texte sera extrait et converti en Excel.")
+st.markdown("Dépose ton fichier PDF ci-dessous. Les tableaux seront extraits et convertis en Excel.")
 
 uploaded_file = st.file_uploader("Choisis un fichier PDF", type="pdf")
 
 if uploaded_file:
     with st.spinner("📤 Traitement du fichier..."):
-        # Extraire le texte du PDF
         text_data = []
-        with pdfplumber.open(uploaded_file) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    lines = text.split('\n')
-                    for line in lines:
-                        text_data.append([line])
+
+        # Ouvrir le PDF avec PyMuPDF
+        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+            for page in doc:
+                blocks = page.get_text("blocks")
+                for block in blocks:
+                    text = block[4].strip()
+                    if text:
+                        lines = text.split("\n")
+                        for line in lines:
+                            text_data.append([line])
 
         # Créer un DataFrame
         df = pd.DataFrame(text_data, columns=["Texte extrait"])
