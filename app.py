@@ -6,9 +6,9 @@ import re
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-st.set_page_config(page_title="Convertisseur PDF → Excel", layout="centered")
-st.title("📄 Convertisseur PDF → Excel (Format Résultat 4)")
-st.markdown("Dépose ton fichier PDF ci-dessous. Les données seront extraites et converties en Excel avec le format exact de `resultats 4.xlsx`.")
+st.set_page_config(page_title="Extracteur PDF → Excel", layout="centered")
+st.title("📄 Drag & Drop PDF → Excel Formaté")
+st.markdown("Dépose ton fichier PDF ci-dessous. Les données seront extraites automatiquement et converties en Excel avec les colonnes attendues.")
 
 def extract_data_from_pdf(pdf_bytes):
     data = {
@@ -21,16 +21,34 @@ def extract_data_from_pdf(pdf_bytes):
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
         full_text = "\n".join([page.get_text() for page in doc])
 
-    bar_match = re.search(r"CAST\*[\s\n]+([A-Z0-9]+)[\s\n]+Serial No\. ([0-9/]+)", full_text)
-    if bar_match:
-        data["BAR"] = [bar_match.group(1), ""]
-        data["DIAMETER"] = [bar_match.group(2), ""]
+    # BAR and DIAMETER
+    match = re.search(r"CAST\*[\s\n]+([A-Z0-9]+)[\s\n]+Serial No\. ([0-9/]+)", full_text)
+    if match:
+        data["BAR"] = [match.group(1), ""]
+        data["DIAMETER"] = [match.group(2), ""]
 
+    # RT UTS
     data["RT UTS"] = re.findall(r"RT.*?UTS.*?≥ \d+\n(\d+)", full_text)[:2]
+    # 450°C UTS
     data["450°C UTS"] = re.findall(r"450°C.*?UTS.*?≥ \d+\n([\d.]+)", full_text)[:2]
+    # RT 0.2% Proof
     data["RT 0.2%Proof"] = re.findall(r"RT.*?0\.2% Proof.*?≥ \d+\n(\d+)", full_text)[:2]
+    # 450°C 0.2% Proof
     data["450°C 0.2%Proof"] = re.findall(r"450°C.*?0\.2% Proof.*?≥ \d+\n([\d.]+)", full_text)[:2]
+    # ElongatFracture
+    data["ElongatFracture"] = re.findall(r"RT.*?Elong at Fracture.*?(\d+)%", full_text)[:2]
+    # ElongafterFracture
+    data["ElongafterFracture"] = re.findall(r"450°C.*?Elong after Fracture.*?(\d+\.?\d*)%", full_text)[:2]
 
+    # HRC values
+    hrc_values = re.findall(r"HRC.*?\n(\d+)\n(\d+)\n(\d+)", full_text)
+    if hrc_values:
+        hrc = hrc_values[0]
+        data["HRC"] = [", ".join(hrc), ""]
+        moyenne = round(sum(map(int, hrc)) / 3)
+        data["Moyenne_HRC"] = [str(moyenne), ""]
+
+    # Fill missing values with empty strings
     for key in data:
         while len(data[key]) < 2:
             data[key].append("")
@@ -64,18 +82,19 @@ def create_excel(data_dict):
     output.seek(0)
     return output
 
-uploaded_file = st.file_uploader("Choisis un fichier PDF", type="pdf")
+uploaded_file = st.file_uploader("Dépose ton fichier PDF ici", type="pdf")
 
 if uploaded_file:
-    with st.spinner("📤 Traitement du fichier..."):
+    with st.spinner("📤 Extraction en cours..."):
         pdf_bytes = uploaded_file.read()
         extracted_data = extract_data_from_pdf(pdf_bytes)
         excel_file = create_excel(extracted_data)
 
-        st.success("✅ Fichier traité avec succès !")
+        st.success("✅ Extraction terminée !")
         st.download_button(
             label="📥 Télécharger le fichier Excel",
             data=excel_file,
             file_name="resultats_formaté.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
