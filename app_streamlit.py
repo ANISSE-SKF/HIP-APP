@@ -30,4 +30,4 @@ def extract_data_from_pdf(pdf_bytes):
     data["RT UTS"] = re.findall(r"RT.*?UTS.*?≥ \d+\n(\d+)", full_text)[:2]
     data["450°C UTS"] = re.findall(r"450°C.*?UTS.*?≥ \d+\n([\d.]+)", full_text)[:2]
     data["RT 0.2%Proof"] = re.findall(r"RT.*?0\.2% Proof.*?≥ \d+\n(\d+)", full_text)[:2]
-    data["450°C 0.2%Proof"] = re.findall(r
+   data["450°C 0.2%Proof"] = re.findall(r"450°C.*?0\.2% Proof.*?≥ \d+\n([\d.]+)", full_text)[:2]
