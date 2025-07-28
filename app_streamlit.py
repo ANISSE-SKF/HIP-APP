@@ -21,7 +21,6 @@ def extract_data_from_pdf(pdf_bytes):
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
         full_text = "\n".join([page.get_text() for page in doc])
 
-    # Extraction des valeurs
     bar_match = re.search(r"CAST\*[\s\n]+([A-Z0-9]+)[\s\n]+Serial No\. ([0-9/]+)", full_text)
     if bar_match:
         data["BAR"] = [bar_match.group(1), ""]
@@ -32,6 +31,15 @@ def extract_data_from_pdf(pdf_bytes):
     data["RT 0.2%Proof"] = re.findall(r"RT.*?0\.2% Proof.*?≥ \d+\n(\d+)", full_text)[:2]
     data["450°C 0.2%Proof"] = re.findall(r"450°C.*?0\.2% Proof.*?≥ \d+\n([\d.]+)", full_text)[:2]
 
+    for key in data:
+        while len(data[key]) < 2:
+            data[key].append("")
+
     return data
 
-# Tu peux continuer avec le reste de ton code ici...
+def create_excel(data_dict):
+    output = io.BytesIO()
+    wb = Workbook()
+    ws = wb.active
+
+    ws.merge_cells("A1:G1
