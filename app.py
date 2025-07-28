@@ -6,11 +6,11 @@ import re
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
-st.set_page_config(page_title="Extracteur PDF → Excel", layout="centered")
-st.title("📄 Drag & Drop PDF → Excel Formaté")
-st.markdown("Dépose ton fichier PDF ci-dessous. Les données seront extraites automatiquement et converties en Excel avec les colonnes attendues.")
+st.set_page_config(page_title="PDF → Excel Extractor", layout="centered")
+st.title("📄 PDF → Excel Extracteur de Données")
+st.markdown("Dépose un fichier PDF pour extraire les données et générer un fichier Excel structuré.")
 
-def extract_data_from_pdf(pdf_bytes):
+def extract_values_from_text(text):
     data = {
         "BAR": [], "DIAMETER": [], "Elong.4D": [], "Elong.5D": [], "InitialD": [],
         "Proof(0.2%)": [], "mE": [], "RT UTS": [], "450°C UTS": [], "RT 0.2%Proof": [],
@@ -18,30 +18,26 @@ def extract_data_from_pdf(pdf_bytes):
         "HRC": [], "Moyenne_HRC": []
     }
 
-    with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        full_text = "\n".join([page.get_text() for page in doc])
-
     # BAR and DIAMETER
-    match = re.search(r"CAST\*[\s\n]+([A-Z0-9]+)[\s\n]+Serial No\. ([0-9/]+)", full_text)
+    match = re.search(r"CAST\*.*?([A-Z0-9]+)\s+Serial No\. ([0-9/]+)", text)
     if match:
         data["BAR"] = [match.group(1), ""]
         data["DIAMETER"] = [match.group(2), ""]
 
     # RT UTS
-    data["RT UTS"] = re.findall(r"RT.*?UTS.*?≥ \d+\n(\d+)", full_text)[:2]
+    data["RT UTS"] = re.findall(r"RT.*?UTS.*?≥ \d+\n(\d+)", text)[:2]
     # 450°C UTS
-    data["450°C UTS"] = re.findall(r"450°C.*?UTS.*?≥ \d+\n([\d.]+)", full_text)[:2]
-    # RT 0.2% Proof
-    data["RT 0.2%Proof"] = re.findall(r"RT.*?0\.2% Proof.*?≥ \d+\n(\d+)", full_text)[:2]
-    # 450°C 0.2% Proof
-    data["450°C 0.2%Proof"] = re.findall(r"450°C.*?0\.2% Proof.*?≥ \d+\n([\d.]+)", full_text)[:2]
+    data["450°C UTS"] = re.findall(r"450°C.*?UTS.*?≥ \d+\n([\d.]+)", text)[:2]
+    # RT 0.2%Proof
+    data["RT 0.2%Proof"] = re.findall(r"RT.*?0\.2% Proof.*?≥ \d+\n(\d+)", text)[:2]
+    # 450°C 0.2%Proof
+    data["450°C 0.2%Proof"] = re.findall(r"450°C.*?0\.2% Proof.*?≥ \d+\n([\d.]+)", text)[:2]
     # ElongatFracture
-    data["ElongatFracture"] = re.findall(r"RT.*?Elong at Fracture.*?(\d+)%", full_text)[:2]
+    data["ElongatFracture"] = re.findall(r"RT.*?Elong at Fracture.*?(\d+)%", text)[:2]
     # ElongafterFracture
-    data["ElongafterFracture"] = re.findall(r"450°C.*?Elong after Fracture.*?(\d+\.?\d*)%", full_text)[:2]
-
-    # HRC values
-    hrc_values = re.findall(r"HRC.*?\n(\d+)\n(\d+)\n(\d+)", full_text)
+    data["ElongafterFracture"] = re.findall(r"450°C.*?Elong after Fracture.*?(\d+\.?\d*)%", text)[:2]
+    # HRC
+    hrc_values = re.findall(r"HRC.*?\n(\d+)\n(\d+)\n(\d+)", text)
     if hrc_values:
         hrc = hrc_values[0]
         data["HRC"] = [", ".join(hrc), ""]
@@ -60,6 +56,7 @@ def create_excel(data_dict):
     wb = Workbook()
     ws = wb.active
 
+    # Fusion des en-têtes
     ws.merge_cells("A1:G1")
     ws["A1"] = "Curve"
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -82,19 +79,22 @@ def create_excel(data_dict):
     output.seek(0)
     return output
 
-uploaded_file = st.file_uploader("Dépose ton fichier PDF ici", type="pdf")
+uploaded_file = st.file_uploader("Dépose un fichier PDF", type="pdf")
 
 if uploaded_file:
-    with st.spinner("📤 Extraction en cours..."):
+    with st.spinner("📤 Traitement du fichier..."):
         pdf_bytes = uploaded_file.read()
-        extracted_data = extract_data_from_pdf(pdf_bytes)
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            full_text = "\n".join([page.get_text() for page in doc])
+
+        extracted_data = extract_values_from_text(full_text)
         excel_file = create_excel(extracted_data)
 
-        st.success("✅ Extraction terminée !")
+        st.success("✅ Fichier Excel généré avec succès !")
         st.download_button(
             label="📥 Télécharger le fichier Excel",
             data=excel_file,
-            file_name="resultats_formaté.xlsx",
+            file_name="resultats.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
