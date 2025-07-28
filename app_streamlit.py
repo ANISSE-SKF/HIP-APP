@@ -14,8 +14,11 @@ if uploaded_file:
     with st.spinner("📤 Traitement du fichier..."):
         text_data = []
 
+        # Lire le contenu du fichier une seule fois
+        pdf_bytes = uploaded_file.read()
+
         # Ouvrir le PDF avec PyMuPDF
-        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             for page in doc:
                 blocks = page.get_text("blocks")
                 for block in blocks:
@@ -38,6 +41,6 @@ if uploaded_file:
         st.download_button(
             label="📥 Télécharger le fichier Excel",
             data=output,
-            file_name="resultats 2.xlsx",
+            file_name="resultats.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
